@@ -11,7 +11,7 @@ use std::sync::{Arc, Barrier};
 fn main() {
 
     // Args TODO make them configurable
-    let iter = 100_000;
+    let n_iterations = 100_000;
     let msg_size = 100;
     let affinity_send = 0;
     let affinity_recv = 1;
