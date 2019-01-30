@@ -23,7 +23,7 @@ fn main() {
 
     // Init bytes arrays
     let mut bytes_send = vec![];
-    for _ in 0..iter {
+    for _ in 0..n_iterations {
         bytes_send.push(vec![Bytes::from(vec![0; msg_size])].into_iter());
     }
     let mut bytes_recv = Vec::new();
@@ -42,13 +42,13 @@ fn main() {
 
         barrier_recv.wait();
 
-        for i in 0..iter {
+        for i in 0..n_iterations {
             while bytes_recv.is_empty() {
                 queue_recv.drain_into(&mut bytes_recv);
             }
             assert_eq!(bytes_recv.remove(0).len(), msg_size);
-            if i * 100 % iter == 0 {
-                println!("Received {}%", i * 100 / iter);
+            if i * 100 % n_iterations == 0 {
+                println!("Received {}%", i * 100 / n_iterations);
             }
             let t1 = Instant::now();
             times_recv.push(t1);
@@ -66,7 +66,7 @@ fn main() {
         barrier_send.wait();
         thread::sleep(Duration::from_millis(10));
 
-        for _ in 0..iter {
+        for _ in 0..n_iterations {
             let send = bytes_send.remove(0);
             let t0 = Instant::now();
             queue_send.extend(send);
