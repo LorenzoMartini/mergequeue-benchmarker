@@ -10,7 +10,7 @@ use std::sync::{Arc, Barrier};
 
 fn main() {
 
-    // Args
+    // Args TODO make them configurable
     let iter = 100_000;
     let msg_size = 100;
     let affinity_send = 0;
@@ -76,6 +76,7 @@ fn main() {
         times_send
     });
 
+    // Wait for completion and extract results
     let mut sends = times_send.join().unwrap_or_default();
     let mut recvs = times_recv.join().unwrap_or_default();
 
@@ -83,17 +84,17 @@ fn main() {
 
     assert_eq!(leng, recvs.len());
 
-    // Collect measures
+    // Collect and print measures using HDRHist
     let mut hist = streaming_harness_hdrhist::HDRHist::new();
     for _ in 0..leng {
         let duration = recvs.remove(0).duration_since(sends.remove(0));
         hist.add_value(duration.as_secs() * 1_000_000_000u64 + duration.subsec_nanos() as u64);
     }
-
     print_summary(hist);
 
 }
 
+// / Pin thread to physical core using provided id
 fn set_affinity(t_id: usize) {
     let core_ids = core_affinity::get_core_ids().unwrap();
     core_affinity::set_for_current(core_ids[t_id % core_ids.len()]);
