@@ -10,31 +10,38 @@ use std::sync::{Arc, Barrier};
 
 fn main() {
 
+    // Args
     let iter = 100_000;
     let msg_size = 100;
     let affinity_send = 0;
     let affinity_recv = 1;
 
+    // MergeQueues init
     let queue = MergeQueue::new(Signal::new());
     let mut queue_send = queue.clone();
     let mut queue_recv = queue.clone();
+
+    // Init bytes arrays
     let mut bytes_send = vec![];
     for _ in 0..iter {
         bytes_send.push(vec![Bytes::from(vec![0; msg_size])].into_iter());
     }
+    let mut bytes_recv = Vec::new();
 
+    // Build barrier to sync threads.
+    // Sender will start a bit later to guarantee reader is already waiting
     let barrier = Arc::new(Barrier::new(2));
     let barrier_send = barrier.clone();
     let barrier_recv = barrier.clone();
 
-    let mut bytes_recv = Vec::new();
+    // Collect the times when sending
     let times_recv = thread::spawn(move || {
 
-        let core_ids = core_affinity::get_core_ids().unwrap();
-        core_affinity::set_for_current(core_ids[affinity_recv % core_ids.len()]);
+        set_affinity(affinity_recv);
         let mut times_recv = Vec::new();
 
         barrier_recv.wait();
+
         for i in 0..iter {
             while bytes_recv.is_empty() {
                 queue_recv.drain_into(&mut bytes_recv);
@@ -50,11 +57,10 @@ fn main() {
         times_recv
     });
 
+    // Collect the times when receiving
     let times_send = thread::spawn(move || {
 
-        let core_ids = core_affinity::get_core_ids().unwrap();
-        core_affinity::set_for_current(core_ids[affinity_send % core_ids.len()]);
-
+        set_affinity(affinity_send);
         let mut times_send = Vec::new();
 
         barrier_send.wait();
@@ -86,6 +92,11 @@ fn main() {
 
     print_summary(hist);
 
+}
+
+fn set_affinity(t_id: usize) {
+    let core_ids = core_affinity::get_core_ids().unwrap();
+    core_affinity::set_for_current(core_ids[t_id % core_ids.len()]);
 }
 
 /// Nicely outputs summary of execution with stats and CDF points.
