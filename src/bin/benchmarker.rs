@@ -34,7 +34,7 @@ fn main() {
     let barrier_send = barrier.clone();
     let barrier_recv = barrier.clone();
 
-    // Collect the times when sending
+    // Collect the times when receiving
     let times_recv = thread::spawn(move || {
 
         set_affinity(affinity_recv);
@@ -57,7 +57,7 @@ fn main() {
         times_recv
     });
 
-    // Collect the times when receiving
+    // Collect the times when sending
     let times_send = thread::spawn(move || {
 
         set_affinity(affinity_send);
