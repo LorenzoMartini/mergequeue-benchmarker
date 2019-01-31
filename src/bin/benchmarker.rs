@@ -88,15 +88,15 @@ fn main() {
     });
 
     // Wait for completion and extract results
-    let mut sends = times_send.join().unwrap_or_default();
-    let mut recvs = times_recv.join().unwrap_or_default();
+    let sends = times_send.join().unwrap_or_default();
+    let recvs = times_recv.join().unwrap_or_default();
     assert_eq!(sends.len(), recvs.len());
 
     // Collect and print measures using HDRHist
     println!("Collecting to HDRHist");
     let mut hist = streaming_harness_hdrhist::HDRHist::new();
-    for _ in 0..n_iterations {
-        let duration = recvs.remove(0).duration_since(sends.remove(0));
+    for i in 0..n_iterations {
+        let duration = recvs[i].duration_since(sends[i]);
         hist.add_value(duration.as_secs() * 1_000_000_000u64 + duration.subsec_nanos() as u64);
     }
     print_summary(hist);
