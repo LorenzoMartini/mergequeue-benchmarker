@@ -3,6 +3,7 @@ use clap::{Arg, App};
 pub struct Config {
     pub n_bytes: usize,
     pub n_iterations: usize,
+    pub frequency: u64,
     pub sender_pin: usize,
     pub receiver_pin: usize,
 }
@@ -23,6 +24,14 @@ pub fn parse_config() -> Config {
             .long("iterations")
             .value_name("iterations")
             .help("number of rounds of transfer to perform")
+            .takes_value(true)
+            .default_value("100000")
+        )
+        .arg(Arg::with_name("frequency")
+            .short("f")
+            .long("frequency")
+            .value_name("frequency")
+            .help("frequency at which sending messages")
             .takes_value(true)
             .default_value("100000")
         )
@@ -47,6 +56,7 @@ pub fn parse_config() -> Config {
     // Gets a value for config if supplied by user, or defaults to "default.conf"
     let n_bytes = matches.value_of("n_bytes").unwrap().parse::<usize>().unwrap();
     let n_iterations = matches.value_of("iterations").unwrap().parse::<usize>().unwrap();
+    let frequency = matches.value_of("frequency").unwrap().parse::<u64>().unwrap();
     let sender_pin = matches.value_of("sendpin").unwrap().parse::<usize>().unwrap();
     let receiver_pin = matches.value_of("recvpin").unwrap().parse::<usize>().unwrap();
 
@@ -64,6 +74,7 @@ pub fn parse_config() -> Config {
     Config {
         n_bytes,
         n_iterations,
+        frequency,
         sender_pin,
         receiver_pin
     }

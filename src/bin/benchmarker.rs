@@ -8,6 +8,7 @@ use timely::bytes::arc::Bytes;
 use std::time::{Duration, Instant};
 use std::thread;
 use std::sync::{Arc, Barrier};
+use std::ops::Add;
 use mergequeue_benchmarker::config;
 
 fn main() {
@@ -18,6 +19,7 @@ fn main() {
     let msg_size = args.n_bytes;
     let affinity_send = args.sender_pin;
     let affinity_recv = args.receiver_pin;
+    let ns_break = Duration::from_nanos(1_000_000_000 / args.frequency);
 
     // MergeQueues init
     let queue = MergeQueue::new(Signal::new());
@@ -56,7 +58,7 @@ fn main() {
 
             // Verify everything as expected and print progress
             assert_eq!(bytes_recv.remove(0).len(), msg_size);
-            if i * 10 % n_iterations == 0 {
+            if i * 100 % n_iterations == 0 {
                 println!("Received {}%", i * 100 / n_iterations);
             }
             times_recv.push(t1);
@@ -71,19 +73,25 @@ fn main() {
 
         set_affinity(affinity_send);
         let mut times_send = Vec::with_capacity(n_iterations);
-
+        let mut overflow = 0;
         barrier_send.wait();
         thread::sleep(Duration::from_millis(1000));
 
+        let mut prev_time = Instant::now();
         while Arc::strong_count(&active_threads) > 1 {
-            let to_send = vec![Bytes::from(vec![0; msg_size])].into_iter();
             let t0 = Instant::now();
-            queue_send.extend(to_send);
-            if times_send.len() < n_iterations {
-                times_send.push(t0);
+            if t0.duration_since(prev_time).ge(&ns_break) {
+                let to_send = vec![Bytes::from(vec![0; msg_size])].into_iter();
+                queue_send.extend(to_send);
+                if times_send.len() < n_iterations {
+                    times_send.push(t0);
+                } else {
+                    overflow += 1;
+                }
+                prev_time = prev_time.add(ns_break);
             }
         }
-        println!("Sender done");
+        println!("Sender done, overflow: {} messages", overflow);
         times_send
     });
 
