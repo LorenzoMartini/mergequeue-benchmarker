@@ -1,20 +1,23 @@
 extern crate timely;
 extern crate streaming_harness_hdrhist;
 extern crate core_affinity;
+extern crate mergequeue_benchmarker;
 
 use timely::communication::allocator::zero_copy::bytes_exchange::{MergeQueue, Signal, BytesPush, BytesPull};
 use timely::bytes::arc::Bytes;
 use std::time::{Duration, Instant};
 use std::thread;
 use std::sync::{Arc, Barrier};
+use mergequeue_benchmarker::config;
 
 fn main() {
 
-    // Args TODO make them configurable
-    let n_iterations = 100_000;
-    let msg_size = 100;
-    let affinity_send = 0;
-    let affinity_recv = 1;
+    // Args extract
+    let args = config::parse_config();
+    let n_iterations = args.n_iterations;
+    let msg_size = args.n_bytes;
+    let affinity_send = args.sender_pin;
+    let affinity_recv = args.receiver_pin;
 
     // MergeQueues init
     let queue = MergeQueue::new(Signal::new());
