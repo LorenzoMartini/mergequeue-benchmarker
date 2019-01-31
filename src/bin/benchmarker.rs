@@ -24,23 +24,21 @@ fn main() {
     let mut queue_send = queue.clone();
     let mut queue_recv = queue.clone();
 
-    // Init bytes arrays
-    let mut bytes_send = Vec::with_capacity(n_iterations);
-    for _ in 0..n_iterations {
-        bytes_send.push(vec![Bytes::from(vec![0; msg_size])].into_iter());
-    }
-    let mut bytes_recv = Vec::with_capacity(1);
-
     // Build barrier to sync threads.
     // Sender will start a bit later to guarantee reader is already waiting
     let barrier = Arc::new(Barrier::new(2));
     let barrier_send = barrier.clone();
     let barrier_recv = barrier.clone();
 
+    let active_threads = Arc::new(0 as u8);
+    let recv_active = active_threads.clone();
+
     // Collect the times when receiving
     let times_recv = thread::spawn(move || {
 
         set_affinity(affinity_recv);
+
+        let mut bytes_recv = Vec::with_capacity(1);
         let mut times_recv = Vec::with_capacity(n_iterations);
 
         barrier_recv.wait();
@@ -53,12 +51,13 @@ fn main() {
 
             // Verify everything as expected and print progress
             assert_eq!(bytes_recv.remove(0).len(), msg_size);
-            if i * 100 % n_iterations == 0 {
+            if i * 10 % n_iterations == 0 {
                 println!("Received {}%", i * 100 / n_iterations);
             }
             times_recv.push(t1);
         }
         println!("Recv done");
+        let _drop_active = Arc::try_unwrap(recv_active);
         times_recv
     });
 
@@ -69,13 +68,15 @@ fn main() {
         let mut times_send = Vec::with_capacity(n_iterations);
 
         barrier_send.wait();
-        thread::sleep(Duration::from_millis(10));
+        thread::sleep(Duration::from_millis(1000));
 
-        for _ in 0..n_iterations {
-            let send = bytes_send.remove(0);
+        while Arc::strong_count(&active_threads) > 1 {
+            let to_send = vec![Bytes::from(vec![0; msg_size])].into_iter();
             let t0 = Instant::now();
-            queue_send.extend(send);
-            times_send.push(t0);
+            queue_send.extend(to_send);
+            if times_send.len() < n_iterations {
+                times_send.push(t0);
+            }
         }
         println!("Sender done");
         times_send
@@ -84,14 +85,12 @@ fn main() {
     // Wait for completion and extract results
     let mut sends = times_send.join().unwrap_or_default();
     let mut recvs = times_recv.join().unwrap_or_default();
-
-    let leng = sends.len();
-
-    assert_eq!(leng, recvs.len());
+    assert_eq!(sends.len(), recvs.len());
 
     // Collect and print measures using HDRHist
+    println!("Collecting to HDRHist");
     let mut hist = streaming_harness_hdrhist::HDRHist::new();
-    for _ in 0..leng {
+    for _ in 0..n_iterations {
         let duration = recvs.remove(0).duration_since(sends.remove(0));
         hist.add_value(duration.as_secs() * 1_000_000_000u64 + duration.subsec_nanos() as u64);
     }
