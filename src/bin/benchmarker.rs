@@ -30,8 +30,13 @@ fn main() {
     let barrier_send = barrier.clone();
     let barrier_recv = barrier.clone();
 
+    // Arc to determine when workers are done. We keep two references and give one to the receiver
+    // and one to the sender.
+    // ::strong_count will be then 2 until receiver has received n_iterations messages.
+    // At that point it'll drop a reference and sender will be able to get out of the loop.
     let active_threads = Arc::new(0 as u8);
     let recv_active = active_threads.clone();
+    assert_eq!(Arc::strong_count(&active_threads), 2);
 
     // Collect the times when receiving
     let times_recv = thread::spawn(move || {
