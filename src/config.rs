@@ -24,7 +24,7 @@ pub fn parse_config() -> Config {
             .value_name("iterations")
             .help("number of rounds of transfer to perform")
             .takes_value(true)
-            .default_value("1000000")
+            .default_value("100000")
         )
         .arg(Arg::with_name("sendpin")
             .short("s")
@@ -40,7 +40,7 @@ pub fn parse_config() -> Config {
             .value_name("recvpin")
             .help("id of process to pin receiver thread to, -1 for no pinning")
             .takes_value(true)
-            .default_value("0")
+            .default_value("1")
         )
         .get_matches();
 

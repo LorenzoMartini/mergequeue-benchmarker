@@ -25,11 +25,11 @@ fn main() {
     let mut queue_recv = queue.clone();
 
     // Init bytes arrays
-    let mut bytes_send = vec![];
+    let mut bytes_send = Vec::with_capacity(n_iterations);
     for _ in 0..n_iterations {
         bytes_send.push(vec![Bytes::from(vec![0; msg_size])].into_iter());
     }
-    let mut bytes_recv = Vec::new();
+    let mut bytes_recv = Vec::with_capacity(1);
 
     // Build barrier to sync threads.
     // Sender will start a bit later to guarantee reader is already waiting
@@ -41,7 +41,7 @@ fn main() {
     let times_recv = thread::spawn(move || {
 
         set_affinity(affinity_recv);
-        let mut times_recv = Vec::new();
+        let mut times_recv = Vec::with_capacity(n_iterations);
 
         barrier_recv.wait();
 
@@ -49,11 +49,13 @@ fn main() {
             while bytes_recv.is_empty() {
                 queue_recv.drain_into(&mut bytes_recv);
             }
+            let t1 = Instant::now();
+
+            // Verify everything as expected and print progress
             assert_eq!(bytes_recv.remove(0).len(), msg_size);
             if i * 100 % n_iterations == 0 {
                 println!("Received {}%", i * 100 / n_iterations);
             }
-            let t1 = Instant::now();
             times_recv.push(t1);
         }
         println!("Recv done");
@@ -64,7 +66,7 @@ fn main() {
     let times_send = thread::spawn(move || {
 
         set_affinity(affinity_send);
-        let mut times_send = Vec::new();
+        let mut times_send = Vec::with_capacity(n_iterations);
 
         barrier_send.wait();
         thread::sleep(Duration::from_millis(10));
