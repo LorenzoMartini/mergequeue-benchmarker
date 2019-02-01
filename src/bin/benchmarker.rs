@@ -16,7 +16,6 @@ fn main() {
     // Args extract
     let args = config::parse_config();
     let n_iterations = args.n_iterations;
-    let msg_size = args.n_bytes;
     let affinity_send = args.sender_pin;
     let affinity_recv = args.receiver_pin;
     let ns_break = Duration::from_nanos(1_000_000_000 / args.frequency);
@@ -56,13 +55,12 @@ fn main() {
                 queue_recv.drain_into(&mut bytes_recv);
             }
             let t1 = Instant::now();
-            let n_messages = bytes_recv.len();
+            let n_messages = bytes_recv.drain(..).map(|x| x.len()).sum();
             tot_n_messages += n_messages;
 
             // We may read more than one message from the queue => need to store how many messages
             // read for the same timestamp
             times_recv.push((t1, n_messages));
-            bytes_recv.clear();
 
             // Print progress
             if tot_n_messages * 100 % n_iterations == 0 {
@@ -77,6 +75,8 @@ fn main() {
     // Collect the times when sending
     let times_send = thread::spawn(move || {
 
+        let mut buffer = Bytes::from(vec![0u8; n_iterations * 2]);
+
         set_affinity(affinity_send);
         let mut times_send = Vec::with_capacity(n_iterations);
         barrier_send.wait();
@@ -86,7 +86,7 @@ fn main() {
         while receiver_active_send.load(Ordering::Relaxed) {
             let t0 = Instant::now();
             if t0.duration_since(prev_time).ge(&ns_break) {
-                let to_send = vec![Bytes::from(vec![0; msg_size])].into_iter();
+                let to_send = Some(buffer.extract_to(1));
                 queue_send.extend(to_send);
 
                 // Collect only n_measures measures
