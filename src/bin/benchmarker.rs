@@ -2,6 +2,7 @@ extern crate timely;
 extern crate streaming_harness_hdrhist;
 extern crate core_affinity;
 extern crate mergequeue_benchmarker;
+extern crate amd64_timer;
 
 use timely::communication::allocator::zero_copy::bytes_exchange::{MergeQueue, Signal, BytesPush, BytesPull};
 use timely::bytes::arc::Bytes;
@@ -10,6 +11,7 @@ use std::thread;
 use std::sync::{Arc, Barrier, atomic::AtomicBool, atomic::Ordering};
 use std::ops::Add;
 use mergequeue_benchmarker::config;
+use amd64_timer::ticks;
 
 fn main() {
 
@@ -35,6 +37,7 @@ fn main() {
     let receiver_active = Arc::new(AtomicBool::new(true));
     let receiver_active_send = receiver_active.clone();
 
+    println!("TICKS{}", ticks());
     // Collect the times when receiving
     let times_recv = thread::spawn(move || {
 
@@ -54,7 +57,7 @@ fn main() {
             while bytes_recv.is_empty() {
                 queue_recv.drain_into(&mut bytes_recv);
             }
-            let t1 = Instant::now();
+            let t1 = ticks();
             let n_messages = bytes_recv.drain(..).map(|x| x.len()).sum();
             tot_n_messages += n_messages;
 
@@ -87,11 +90,12 @@ fn main() {
             let t0 = Instant::now();
             if t0.duration_since(prev_time).ge(&ns_break) {
                 let to_send = Some(buffer.extract_to(1));
+                let time = ticks();
                 queue_send.extend(to_send);
 
                 // Collect only n_measures measures
                 if times_send.len() < n_iterations {
-                    times_send.push(t0);
+                    times_send.push(time);
                 }
                 prev_time = prev_time.add(ns_break);
             }
@@ -115,8 +119,8 @@ fn main() {
             if i >= n_iterations {
                 break 'outer;
             }
-            let duration = time_quantity_pair.0.duration_since(sends[i]);
-            hist.add_value(duration.as_secs() * 1_000_000_000u64 + duration.subsec_nanos() as u64);
+            let duration = time_quantity_pair.0 - sends[i];
+            hist.add_value(duration);
             n_messages_hist.add_value(time_quantity_pair.1 as u64);
             i += 1;
         }
