@@ -115,13 +115,14 @@ fn main() {
     let mut i = 0;
     'outer: for time_quantity_pair in recvs {
         'inner: for _ in 0..time_quantity_pair.1 {
+            // Save only first n_iterations measures
+            if i >= n_iterations {
+                break 'outer;
+            }
             let duration = time_quantity_pair.0.duration_since(sends[i]);
             hist.add_value(duration.as_secs() * 1_000_000_000u64 + duration.subsec_nanos() as u64);
             n_messages_hist.add_value(time_quantity_pair.1 as u64);
             i += 1;
-            if i >= n_iterations {
-                break 'outer;
-            }
         }
     }
 
