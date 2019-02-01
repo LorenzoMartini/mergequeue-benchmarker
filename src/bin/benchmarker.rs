@@ -45,23 +45,29 @@ fn main() {
 
         set_affinity(affinity_recv);
 
-        let mut bytes_recv = Vec::with_capacity(1);
+        let mut bytes_recv = Vec::with_capacity(n_iterations);
         let mut times_recv = Vec::with_capacity(n_iterations);
 
         barrier_recv.wait();
 
-        for i in 0..n_iterations {
+        while times_recv.len() < n_iterations {
+            assert_eq!(bytes_recv.is_empty(), true);
             while bytes_recv.is_empty() {
                 queue_recv.drain_into(&mut bytes_recv);
             }
             let t1 = Instant::now();
+            let n_messages = bytes_recv.len();
 
-            // Verify everything as expected and print progress
-            assert_eq!(bytes_recv.remove(0).len(), msg_size);
-            if i * 100 % n_iterations == 0 {
-                println!("Received {}%", i * 100 / n_iterations);
+            // We may read more than one message from the queue => need to add a timestamp for each
+            for _ in 0..n_messages {
+                times_recv.push(t1);
             }
-            times_recv.push(t1);
+            bytes_recv.clear();
+            // Print progress
+
+            if times_recv.len() * 100 % n_iterations == 0 {
+                println!("Received {}%", times_recv.len() * 100 / n_iterations);
+            }
         }
         println!("Recv done");
         let _drop_active = Arc::try_unwrap(recv_active);
