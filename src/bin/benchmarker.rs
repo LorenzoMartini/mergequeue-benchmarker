@@ -83,7 +83,6 @@ fn main() {
 
         set_affinity(affinity_send);
         let mut times_send = Vec::with_capacity(n_iterations);
-        let mut overflow = 0;
         barrier_send.wait();
         thread::sleep(Duration::from_millis(1000));
 
@@ -93,15 +92,15 @@ fn main() {
             if t0.duration_since(prev_time).ge(&ns_break) {
                 let to_send = vec![Bytes::from(vec![0; msg_size])].into_iter();
                 queue_send.extend(to_send);
+
+                // Collect only n_measures measures
                 if times_send.len() < n_iterations {
                     times_send.push(t0);
-                } else {
-                    overflow += 1;
                 }
                 prev_time = prev_time.add(ns_break);
             }
         }
-        println!("Sender done, overflow: {} messages", overflow);
+        println!("Sender done");
         times_send
     });
 
@@ -114,20 +113,19 @@ fn main() {
     let mut hist = streaming_harness_hdrhist::HDRHist::new();
     let mut n_messages_hist = streaming_harness_hdrhist::HDRHist::new();
     let mut i = 0;
-    for time_quantity_pair in recvs {
-        for _ in 0..time_quantity_pair.1 {
+    'outer: for time_quantity_pair in recvs {
+        'inner: for _ in 0..time_quantity_pair.1 {
             let duration = time_quantity_pair.0.duration_since(sends[i]);
             hist.add_value(duration.as_secs() * 1_000_000_000u64 + duration.subsec_nanos() as u64);
             n_messages_hist.add_value(time_quantity_pair.1 as u64);
             i += 1;
+            if i >= n_iterations {
+                break 'outer;
+            }
         }
     }
-    println!("\nVALUES HIST\n");
-    print_summary(hist);
 
-    println!("MESSAGES QUANTITY HIST\n");
-    print_summary(n_messages_hist);
-
+    print_summary(hist, n_messages_hist);
 }
 
 // / Pin thread to physical core using provided id
@@ -136,8 +134,15 @@ fn set_affinity(t_id: usize) {
     core_affinity::set_for_current(core_ids[t_id % core_ids.len()]);
 }
 
+fn print_summary(hist: streaming_harness_hdrhist::HDRHist, msg_hist: streaming_harness_hdrhist::HDRHist) {
+    print_line();
+    println!("VALUES HIST");
+    print_hist_summary(hist);
+    println!("MESSAGES QUANTITY HIST");
+    print_hist_summary(msg_hist);
+}
 /// Nicely outputs summary of execution with stats and CDF points.
-fn print_summary(hist: streaming_harness_hdrhist::HDRHist) {
+fn print_hist_summary(hist: streaming_harness_hdrhist::HDRHist) {
     print_line();
     println!("summary:\n{:#?}", hist.summary().collect::<Vec<_>>());
     print_line();
