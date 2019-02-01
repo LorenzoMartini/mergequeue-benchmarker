@@ -104,7 +104,6 @@ fn main() {
     // Wait for completion and extract results
     let sends = times_send.join().unwrap_or_default();
     let recvs = times_recv.join().unwrap_or_default();
-    assert_eq!(sends.len(), recvs.len());
 
     // Collect and print measures using HDRHist
     println!("Collecting to HDRHist");
