@@ -7,7 +7,7 @@ use timely::communication::allocator::zero_copy::bytes_exchange::{MergeQueue, Si
 use timely::bytes::arc::Bytes;
 use std::time::{Duration, Instant};
 use std::thread;
-use std::sync::{Arc, Barrier};
+use std::sync::{Arc, Barrier, atomic::AtomicBool, atomic::Ordering};
 use std::ops::Add;
 use mergequeue_benchmarker::config;
 
@@ -32,13 +32,9 @@ fn main() {
     let barrier_send = barrier.clone();
     let barrier_recv = barrier.clone();
 
-    // Arc to determine when workers are done. We keep two references and give one to the receiver
-    // and one to the sender.
-    // ::strong_count will be then 2 until receiver has received n_iterations messages.
-    // At that point it'll drop a reference and sender will be able to get out of the loop.
-    let active_threads = Arc::new(0 as u8);
-    let recv_active = active_threads.clone();
-    assert_eq!(Arc::strong_count(&active_threads), 2);
+    // Bool to determine when the receiver is done.
+    let receiver_active = Arc::new(AtomicBool::new(true));
+    let receiver_active_send = receiver_active.clone();
 
     // Collect the times when receiving
     let times_recv = thread::spawn(move || {
@@ -74,7 +70,7 @@ fn main() {
             }
         }
         println!("Recv done");
-        let _drop_active = Arc::try_unwrap(recv_active);
+        receiver_active.store(false, Ordering::Relaxed);
         times_recv
     });
 
@@ -87,7 +83,7 @@ fn main() {
         thread::sleep(Duration::from_millis(1000));
 
         let mut prev_time = Instant::now();
-        while Arc::strong_count(&active_threads) > 1 {
+        while receiver_active_send.load(Ordering::Relaxed) {
             let t0 = Instant::now();
             if t0.duration_since(prev_time).ge(&ns_break) {
                 let to_send = vec![Bytes::from(vec![0; msg_size])].into_iter();
