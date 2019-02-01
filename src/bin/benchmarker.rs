@@ -147,6 +147,7 @@ fn print_summary(hist: streaming_harness_hdrhist::HDRHist) {
     for entry in hist.ccdf() {
         println!("{:?}", entry);
     }
+    print_line();
 }
 
 /// Prints dashed line
