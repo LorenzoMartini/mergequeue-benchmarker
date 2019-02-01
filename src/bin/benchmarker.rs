@@ -45,28 +45,32 @@ fn main() {
 
         set_affinity(affinity_recv);
 
+        // We will read messages into bytes_recv and clear it after every read.
+        // We will store in times_recv the timestamp at recv time and the number of messages
+        // received (we could read multiple messages from MergeQueue all together)
         let mut bytes_recv = Vec::with_capacity(n_iterations);
         let mut times_recv = Vec::with_capacity(n_iterations);
+        let mut tot_n_messages = 0;
 
         barrier_recv.wait();
 
-        while times_recv.len() < n_iterations {
+        while tot_n_messages < n_iterations {
             assert_eq!(bytes_recv.is_empty(), true);
             while bytes_recv.is_empty() {
                 queue_recv.drain_into(&mut bytes_recv);
             }
             let t1 = Instant::now();
             let n_messages = bytes_recv.len();
+            tot_n_messages += n_messages;
 
-            // We may read more than one message from the queue => need to add a timestamp for each
-            for _ in 0..n_messages {
-                times_recv.push(t1);
-            }
+            // We may read more than one message from the queue => need to store how many messages
+            // read for the same timestamp
+            times_recv.push((t1, n_messages));
             bytes_recv.clear();
-            // Print progress
 
-            if times_recv.len() * 100 % n_iterations == 0 {
-                println!("Received {}%", times_recv.len() * 100 / n_iterations);
+            // Print progress
+            if tot_n_messages * 100 % n_iterations == 0 {
+                println!("Received {}%", tot_n_messages * 100 / n_iterations);
             }
         }
         println!("Recv done");
@@ -108,11 +112,21 @@ fn main() {
     // Collect and print measures using HDRHist
     println!("Collecting to HDRHist");
     let mut hist = streaming_harness_hdrhist::HDRHist::new();
-    for i in 0..n_iterations {
-        let duration = recvs[i].duration_since(sends[i]);
-        hist.add_value(duration.as_secs() * 1_000_000_000u64 + duration.subsec_nanos() as u64);
+    let mut n_messages_hist = streaming_harness_hdrhist::HDRHist::new();
+    let mut i = 0;
+    for time_quantity_pair in recvs {
+        for _ in 0..time_quantity_pair.1 {
+            let duration = time_quantity_pair.0.duration_since(sends[i]);
+            hist.add_value(duration.as_secs() * 1_000_000_000u64 + duration.subsec_nanos() as u64);
+            n_messages_hist.add_value(time_quantity_pair.1 as u64);
+            i += 1;
+        }
     }
+    println!("\nVALUES HIST\n");
     print_summary(hist);
+
+    println!("MESSAGES QUANTITY HIST\n");
+    print_summary(n_messages_hist);
 
 }
 
@@ -124,9 +138,6 @@ fn set_affinity(t_id: usize) {
 
 /// Nicely outputs summary of execution with stats and CDF points.
 fn print_summary(hist: streaming_harness_hdrhist::HDRHist) {
-    println!("Sent/received everything!");
-    print_line();
-    println!("HDRHIST summary, measure in ns");
     print_line();
     println!("summary:\n{:#?}", hist.summary().collect::<Vec<_>>());
     print_line();
