@@ -2,14 +2,15 @@ extern crate timely;
 extern crate streaming_harness_hdrhist;
 extern crate core_affinity;
 extern crate mergequeue_benchmarker;
+extern crate amd64_timer;
 
 use timely::communication::allocator::zero_copy::bytes_exchange::{MergeQueue, Signal, BytesPush, BytesPull};
 use timely::bytes::arc::Bytes;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use std::thread;
 use std::sync::{Arc, Barrier, atomic::AtomicBool, atomic::Ordering};
-use std::ops::Add;
 use mergequeue_benchmarker::config;
+use amd64_timer::ticks;
 
 fn main() {
 
@@ -18,7 +19,10 @@ fn main() {
     let n_iterations = args.n_iterations;
     let affinity_send = args.sender_pin;
     let affinity_recv = args.receiver_pin;
-    let ns_break = Duration::from_nanos(1_000_000_000 / args.frequency);
+    let clock_frequency = args.clock_frequency;
+
+    // Compute how long to stop betweend sends
+    let clock_break = clock_frequency / args.frequency;
 
     // MergeQueues init
     let queue = MergeQueue::new(Signal::new());
@@ -54,18 +58,13 @@ fn main() {
             while bytes_recv.is_empty() {
                 queue_recv.drain_into(&mut bytes_recv);
             }
-            let t1 = Instant::now();
+            let t1 = ticks();
             let n_messages = bytes_recv.drain(..).map(|x| x.len()).sum();
             tot_n_messages += n_messages;
 
             // We may read more than one message from the queue => need to store how many messages
             // read for the same timestamp
             times_recv.push((t1, n_messages));
-
-            // Print progress
-            if tot_n_messages * 100 % n_iterations == 0 {
-                println!("Received {}%", tot_n_messages * 100 / n_iterations);
-            }
         }
         println!("Recv done");
         receiver_active.store(false, Ordering::Relaxed);
@@ -80,12 +79,13 @@ fn main() {
         set_affinity(affinity_send);
         let mut times_send = Vec::with_capacity(n_iterations);
         barrier_send.wait();
+        // Start later than recv to guarante recv is already polling
         thread::sleep(Duration::from_millis(1000));
 
-        let mut prev_time = Instant::now();
+        let mut prev_time = ticks();
         while receiver_active_send.load(Ordering::Relaxed) {
-            let t0 = Instant::now();
-            if t0.duration_since(prev_time).ge(&ns_break) {
+            let t0 = ticks();
+            if t0 - prev_time >= clock_break {
                 let to_send = Some(buffer.extract_to(1));
                 queue_send.extend(to_send);
 
@@ -93,7 +93,7 @@ fn main() {
                 if times_send.len() < n_iterations {
                     times_send.push(t0);
                 }
-                prev_time = prev_time.add(ns_break);
+                prev_time = prev_time + clock_break;
             }
         }
         println!("Sender done");
@@ -115,8 +115,8 @@ fn main() {
             if i >= n_iterations {
                 break 'outer;
             }
-            let duration = time_quantity_pair.0.duration_since(sends[i]);
-            hist.add_value(duration.as_secs() * 1_000_000_000u64 + duration.subsec_nanos() as u64);
+            let duration = time_quantity_pair.0 - sends[i];
+            hist.add_value(duration);
             n_messages_hist.add_value(time_quantity_pair.1 as u64);
             i += 1;
         }
