@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 ## declare an array variable
-declare -a arr=(1000 10000 100000 1000000 10000000 100000000)
-declare -a pins=(0 4)
+declare -a arr=(10000 100000 1000000 10000000 100000000)
+declare -a pins=(1 4)
 ## now loop through the above array
 for pin in "${pins[@]}"
 do
