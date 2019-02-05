@@ -8,7 +8,7 @@ do
 	for i in "${arr[@]}"
 	do
 		sleep 10
-		echo ./target/release/benchmarker -i 1000000 -f $i -s 0 -r $pin 
+		echo ./target/release/benchmarker -i 1000000 -f $i -s 0 -r $pin
    		./target/release/benchmarker -i 1000000 -f $i -s 0 -r $pin > ./mergequeue_benchmark/"$i"Hz_0-"$pin".log
 	done
 done
