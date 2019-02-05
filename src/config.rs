@@ -5,6 +5,7 @@ pub struct Config {
     pub frequency: u64,
     pub sender_pin: usize,
     pub receiver_pin: usize,
+    pub clock_frequency: u64,
 }
 
 /// Extract the configuration from Command line
@@ -42,6 +43,14 @@ pub fn parse_config() -> Config {
             .takes_value(true)
             .default_value("1")
         )
+        .arg(Arg::with_name("clock")
+            .short("c")
+            .long("clock")
+            .value_name("clock")
+            .help("frequency of system clock")
+            .takes_value(true)
+            .default_value("2400000000")
+        )
         .get_matches();
 
     // Gets a value for config if supplied by user, or defaults to "default.conf"
@@ -49,11 +58,13 @@ pub fn parse_config() -> Config {
     let frequency = matches.value_of("frequency").unwrap().parse::<u64>().unwrap();
     let sender_pin = matches.value_of("sendpin").unwrap().parse::<usize>().unwrap();
     let receiver_pin = matches.value_of("recvpin").unwrap().parse::<usize>().unwrap();
+    let clock_frequency = matches.value_of("clock").unwrap().parse::<u64>().unwrap();
 
     Config {
         n_iterations,
         frequency,
         sender_pin,
-        receiver_pin
+        receiver_pin,
+        clock_frequency
     }
 }
