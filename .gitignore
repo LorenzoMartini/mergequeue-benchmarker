@@ -11,4 +11,4 @@ Cargo.lock
 
 .idea
 
-mergequeue-benchmark/
+mergequeue_benchmark/
