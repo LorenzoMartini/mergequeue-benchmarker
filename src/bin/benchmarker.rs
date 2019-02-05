@@ -65,11 +65,6 @@ fn main() {
             // We may read more than one message from the queue => need to store how many messages
             // read for the same timestamp
             times_recv.push((t1, n_messages));
-
-            // Print progress
-            if tot_n_messages * 100 % n_iterations == 0 {
-                println!("Received {}%", tot_n_messages * 100 / n_iterations);
-            }
         }
         println!("Recv done");
         receiver_active.store(false, Ordering::Relaxed);
