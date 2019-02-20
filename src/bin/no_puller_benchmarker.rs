@@ -18,6 +18,7 @@ fn main() {
     // MergeQueues init
     let queue = MergeQueue::new(Signal::new());
     let mut queue_send = queue.clone();
+    let mut _queue_recv = queue.clone();
 
     let mut hist = hdrhist::HDRHist::new();
 
