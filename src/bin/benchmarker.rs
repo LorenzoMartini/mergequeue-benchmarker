@@ -1,6 +1,5 @@
 extern crate timely;
-extern crate streaming_harness_hdrhist;
-extern crate core_affinity;
+extern crate hdrhist;
 extern crate mergequeue_benchmarker;
 extern crate amd64_timer;
 
@@ -42,7 +41,7 @@ fn main() {
     // Collect the times when receiving
     let times_recv = thread::spawn(move || {
 
-        set_affinity(affinity_recv);
+        mergequeue_benchmarker::utils::set_affinity(affinity_recv);
 
         // We will read messages into bytes_recv and clear it after every read.
         // We will store in times_recv the timestamp at recv time and the number of messages
@@ -76,7 +75,7 @@ fn main() {
 
         let mut buffer = Bytes::from(vec![0u8; n_iterations * 2]);
 
-        set_affinity(affinity_send);
+        mergequeue_benchmarker::utils::set_affinity(affinity_send);
         let mut times_send = Vec::with_capacity(n_iterations);
         barrier_send.wait();
         // Start later than recv to guarante recv is already polling
@@ -106,8 +105,8 @@ fn main() {
 
     // Collect and print measures using HDRHist
     println!("Collecting to HDRHist");
-    let mut hist = streaming_harness_hdrhist::HDRHist::new();
-    let mut n_messages_hist = streaming_harness_hdrhist::HDRHist::new();
+    let mut hist = hdrhist::HDRHist::new();
+    let mut n_messages_hist = hdrhist::HDRHist::new();
     let mut i = 0;
     'outer: for time_quantity_pair in recvs {
         'inner: for _ in 0..time_quantity_pair.1 {
@@ -122,37 +121,5 @@ fn main() {
         }
     }
 
-    print_summary(hist, n_messages_hist);
-}
-
-// / Pin thread to physical core using provided id
-fn set_affinity(t_id: usize) {
-    let core_ids = core_affinity::get_core_ids().unwrap();
-    core_affinity::set_for_current(core_ids[t_id % core_ids.len()]);
-}
-
-fn print_summary(hist: streaming_harness_hdrhist::HDRHist, msg_hist: streaming_harness_hdrhist::HDRHist) {
-    print_line();
-    println!("VALUES HIST");
-    print_hist_summary(hist);
-    println!("MESSAGES QUANTITY HIST");
-    print_hist_summary(msg_hist);
-}
-/// Nicely outputs summary of execution with stats and CDF points.
-fn print_hist_summary(hist: streaming_harness_hdrhist::HDRHist) {
-    print_line();
-    println!("summary:\n{:#?}", hist.summary().collect::<Vec<_>>());
-    print_line();
-    println!("Summary_string:\n{}", hist.summary_string());
-    print_line();
-    println!("CDF summary:\n");
-    for entry in hist.ccdf() {
-        println!("{:?}", entry);
-    }
-    print_line();
-}
-
-/// Prints dashed line
-fn print_line() {
-    println!("\n-------------------------------------------------------------\n");
+    mergequeue_benchmarker::utils::print_summary(hist, n_messages_hist);
 }
