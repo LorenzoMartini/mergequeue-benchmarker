@@ -38,8 +38,9 @@ fn main() {
         println!("Clock cycles for sender without receiver summary");
         mergequeue_benchmarker::utils::print_hist_summary(hist);
     });
-    thread::spawn(move |queue_recv| {
+    thread::spawn(move || {
         sleep(Duration::from_millis(1));
+        _queue_recv.is_complete();
     });
     send.join();
 }
