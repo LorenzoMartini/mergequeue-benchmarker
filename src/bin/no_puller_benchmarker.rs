@@ -32,10 +32,7 @@ fn main() {
         let t1 = ticks();
         hist.add_value(t1 -t0);
     }
-    println!("Sender done");
-
     // Collect and print measures using HDRHist
     println!("Clock cycles for sender without receiver summary");
     mergequeue_benchmarker::utils::print_hist_summary(hist);
-
 }

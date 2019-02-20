@@ -13,6 +13,6 @@ fn main() {
         let t1 = ticks();
         hist.add_value(t1 - t0);
     }
-    println!("SUmmary of cost of tacking cycle count");
+    println!("Summary of cost of tacking cycle count");
     mergequeue_benchmarker::utils::print_hist_summary(hist);
 }
