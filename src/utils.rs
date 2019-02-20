@@ -6,7 +6,7 @@ pub fn set_affinity(t_id: usize) {
     core_affinity::set_for_current(core_ids[t_id % core_ids.len()]);
 }
 
-pub fn print_summary(hist: streaming_harness_hdrhist::HDRHist, msg_hist: streaming_harness_hdrhist::HDRHist) {
+pub fn print_summary(hist: hdrhist::HDRHist, msg_hist: hdrhist::HDRHist) {
     print_line();
     println!("VALUES HIST");
     print_hist_summary(hist);
@@ -14,7 +14,7 @@ pub fn print_summary(hist: streaming_harness_hdrhist::HDRHist, msg_hist: streami
     print_hist_summary(msg_hist);
 }
 /// Nicely outputs summary of execution with stats and CDF points.
-pub fn print_hist_summary(hist: streaming_harness_hdrhist::HDRHist) {
+pub fn print_hist_summary(hist: hdrhist::HDRHist) {
     print_line();
     println!("summary:\n{:#?}", hist.summary().collect::<Vec<_>>());
     print_line();

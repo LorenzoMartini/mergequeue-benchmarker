@@ -11,5 +11,5 @@ description = "Program to microbenchmark timely's MergeQueue"
 clap="2"
 core_affinity = "0.5.9"
 timely = {  git = "https://github.com/frankmcsherry/timely-dataflow" }
-streaming-harness-hdrhist = { git = "https://github.com/utaal/hdrhist-rust" }
+hdrhist = { git = "https://github.com/utaal/hdrhist" }
 amd64_timer = { git = "https://github.com/valarauca/amd64_timer" }

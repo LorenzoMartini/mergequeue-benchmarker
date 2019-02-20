@@ -1,5 +1,5 @@
 extern crate timely;
-extern crate streaming_harness_hdrhist;
+extern crate hdrhist;
 extern crate mergequeue_benchmarker;
 extern crate amd64_timer;
 
@@ -19,7 +19,7 @@ fn main() {
     let queue = MergeQueue::new(Signal::new());
     let mut queue_send = queue.clone();
 
-    let mut hist = streaming_harness_hdrhist::HDRHist::new();
+    let mut hist = hdrhist::HDRHist::new();
 
     let mut buffer = Bytes::from(vec![0u8; n_iterations * 2]);
 

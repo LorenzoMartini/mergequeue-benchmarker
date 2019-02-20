@@ -1,5 +1,5 @@
 extern crate timely;
-extern crate streaming_harness_hdrhist;
+extern crate hdrhist;
 extern crate core_affinity;
 extern crate mergequeue_benchmarker;
 extern crate amd64_timer;
@@ -106,8 +106,8 @@ fn main() {
 
     // Collect and print measures using HDRHist
     println!("Collecting to HDRHist");
-    let mut hist = streaming_harness_hdrhist::HDRHist::new();
-    let mut n_messages_hist = streaming_harness_hdrhist::HDRHist::new();
+    let mut hist = hdrhist::HDRHist::new();
+    let mut n_messages_hist = hdrhist::HDRHist::new();
     let mut i = 0;
     'outer: for time_quantity_pair in recvs {
         'inner: for _ in 0..time_quantity_pair.1 {
