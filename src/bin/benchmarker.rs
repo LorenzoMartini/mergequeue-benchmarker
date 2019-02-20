@@ -1,6 +1,5 @@
 extern crate timely;
 extern crate hdrhist;
-extern crate core_affinity;
 extern crate mergequeue_benchmarker;
 extern crate amd64_timer;
 
