@@ -54,8 +54,9 @@ fn main() {
 
         while tot_n_messages < n_iterations {
             assert_eq!(bytes_recv.is_empty(), true);
-            let t0 = ticks();
+            let mut t0 = ticks();
             while bytes_recv.is_empty() {
+                t0 = ticks();
                 queue_recv.drain_into(&mut bytes_recv);
             }
             let t1 = ticks();
