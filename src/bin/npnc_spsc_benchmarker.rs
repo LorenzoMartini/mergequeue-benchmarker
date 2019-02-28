@@ -8,7 +8,7 @@ use npnc::bounded::spsc;
 use timely::bytes::arc::Bytes;
 use std::time::Duration;
 use std::thread;
-use std::sync::{Arc, Barrier};
+use std::sync::{Arc, Barrier, atomic::AtomicBool, atomic::Ordering};
 use mergequeue_benchmarker::config;
 use amd64_timer::ticks;
 
@@ -32,6 +32,10 @@ fn main() {
     let barrier = Arc::new(Barrier::new(2));
     let barrier_send = barrier.clone();
     let barrier_recv = barrier.clone();
+
+    // Bool to determine when the receiver is done.
+    let receiver_active = Arc::new(AtomicBool::new(true));
+    let receiver_active_send = receiver_active.clone();
 
     // Collect the times when receiving
     let times_recv = thread::spawn(move || {
@@ -60,6 +64,7 @@ fn main() {
             tot_n_messages += 1;
         }
         println!("Recv done");
+        receiver_active.store(false, Ordering::Relaxed);
         times_recv
     });
 
@@ -88,11 +93,14 @@ fn main() {
                         prev_time = prev_time + clock_break;
                     },
                     Err(::npnc::ProduceError::Full(_item)) => {},
-                    Err(_err) => panic!("Can't push")
+                    Err(_err) => panic!("Can't push for some reason")
                 }
             }
         }
         println!("Sender done");
+        while receiver_active_send.load(Ordering::Relaxed) {
+            thread::sleep(Duration::from_millis(1));
+        }
         times_send
     });
 
