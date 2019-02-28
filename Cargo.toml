@@ -13,3 +13,4 @@ core_affinity = "0.5.9"
 timely = {  git = "https://github.com/frankmcsherry/timely-dataflow" }
 hdrhist = { git = "https://github.com/utaal/hdrhist" }
 amd64_timer = { git = "https://github.com/valarauca/amd64_timer" }
+npnc = "0.2.1"
