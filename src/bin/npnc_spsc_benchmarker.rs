@@ -82,20 +82,20 @@ fn main() {
         mergequeue_benchmarker::utils::set_affinity(affinity_send);
         let mut times_send = Vec::with_capacity(n_iterations);
         barrier_send.wait();
+        let mut tot_n_sent = 0;
         // Start later than recv to guarante recv is already polling
         thread::sleep(Duration::from_millis(1000));
 
         let mut prev_time = ticks();
-        while receiver_active_send.load(Ordering::Relaxed) {
+        while tot_n_sent < n_iterations {
             let t0 = ticks();
             if t0 - prev_time >= clock_break {
                 let to_send = Some(buffer.extract_to(1));
                 queue_send.produce(to_send);
 
                 // Collect only n_measures measures
-                if times_send.len() < n_iterations {
-                    times_send.push(t0);
-                }
+                times_send.push(t0);
+                tot_n_sent += 1;
                 prev_time = prev_time + clock_break;
             }
         }
