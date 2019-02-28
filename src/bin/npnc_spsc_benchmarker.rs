@@ -8,7 +8,7 @@ use npnc::bounded::spsc;
 use timely::bytes::arc::Bytes;
 use std::time::Duration;
 use std::thread;
-use std::sync::{Arc, Barrier, atomic::AtomicBool, atomic::Ordering};
+use std::sync::{Arc, Barrier};
 use mergequeue_benchmarker::config;
 use amd64_timer::ticks;
 
@@ -33,10 +33,6 @@ fn main() {
     let barrier_send = barrier.clone();
     let barrier_recv = barrier.clone();
 
-    // Bool to determine when the receiver is done.
-    let receiver_active = Arc::new(AtomicBool::new(true));
-    let receiver_active_send = receiver_active.clone();
-
     // Collect the times when receiving
     let times_recv = thread::spawn(move || {
 
@@ -45,32 +41,25 @@ fn main() {
         // We will read messages into bytes_recv and clear it after every read.
         // We will store in times_recv the timestamp at recv time and the number of messages
         // received (we could read multiple messages from MergeQueue all together)
-        let mut bytes_recv = Vec::with_capacity(n_iterations);
         let mut times_recv = Vec::with_capacity(n_iterations);
         let mut tot_n_messages = 0;
 
         barrier_recv.wait();
 
         while tot_n_messages < n_iterations {
-            assert_eq!(bytes_recv.is_empty(), true);
-//            while bytes_recv.is_empty() {
-//                let recv = queue_recv.consume();
-//            }
             while match queue_recv.consume() {
-                Ok(item) => { bytes_recv.push(item); true},
-                Err(::npnc::ConsumeError::Disconnected) => { false },
-                Err(::npnc::ConsumeError::Empty) => { false },
+                Ok(_item) => {false},
+                Err(::npnc::ConsumeError::Disconnected) => { panic!("Disconnected"); },
+                Err(::npnc::ConsumeError::Empty) => { true },
             } {}
             let t1 = ticks();
-            let n_messages = bytes_recv.drain(..).map(|x: Option<Bytes>| x.unwrap().len()).sum();
-            tot_n_messages += n_messages;
 
             // We may read more than one message from the queue => need to store how many messages
             // read for the same timestamp
-            times_recv.push((t1, n_messages));
+            times_recv.push(t1);
+            tot_n_messages += 1;
         }
         println!("Recv done");
-        receiver_active.store(false, Ordering::Relaxed);
         times_recv
     });
 
@@ -91,7 +80,10 @@ fn main() {
             let t0 = ticks();
             if t0 - prev_time >= clock_break {
                 let to_send = Some(buffer.extract_to(1));
-                queue_send.produce(to_send);
+                match queue_send.produce(to_send) {
+                    Ok(_item) => {}
+                    Err(_err) => panic!("Can't push")
+                }
 
                 // Collect only n_measures measures
                 times_send.push(t0);
@@ -110,20 +102,9 @@ fn main() {
     // Collect and print measures using HDRHist
     println!("Collecting to HDRHist");
     let mut hist = hdrhist::HDRHist::new();
-    let mut n_messages_hist = hdrhist::HDRHist::new();
-    let mut i = 0;
-    'outer: for time_quantity_pair in recvs {
-        'inner: for _ in 0..time_quantity_pair.1 {
-            // Save only first n_iterations measures
-            if i >= n_iterations {
-                break 'outer;
-            }
-            let duration = time_quantity_pair.0 - sends[i];
-            hist.add_value(duration);
-            n_messages_hist.add_value(time_quantity_pair.1 as u64);
-            i += 1;
-        }
+    for i in 0..n_iterations {
+        hist.add_value(recvs[i] - sends[i]);
     }
 
-    mergequeue_benchmarker::utils::print_summary(hist, n_messages_hist);
+    mergequeue_benchmarker::utils::print_hist_summary(hist);
 }
