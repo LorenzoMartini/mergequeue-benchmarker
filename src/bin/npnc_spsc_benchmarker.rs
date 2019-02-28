@@ -81,14 +81,15 @@ fn main() {
             if t0 - prev_time >= clock_break {
                 let to_send = Some(buffer.extract_to(1));
                 match queue_send.produce(to_send) {
-                    Ok(_item) => {}
+                    Ok(_item) => {
+                        // Collect only n_measures measures
+                        times_send.push(t0);
+                        tot_n_sent += 1;
+                        prev_time = prev_time + clock_break;
+                    },
+                    Err(::npnc::ProduceError::Full(_item)) => {},
                     Err(_err) => panic!("Can't push")
                 }
-
-                // Collect only n_measures measures
-                times_send.push(t0);
-                tot_n_sent += 1;
-                prev_time = prev_time + clock_break;
             }
         }
         println!("Sender done");
